@@ -1,5 +1,8 @@
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
+import FeaturedMenu from './components/FeaturedMenu'
+import Testimonials from './components/Testimonials'
+import CallToAction from './components/CallToAction'
 import Footer from './components/Footer'
 
 function App() {
@@ -8,6 +11,9 @@ function App() {
       
       <Navbar />
       <Hero />
+      <FeaturedMenu />
+      <Testimonials />
+      <CallToAction />
       <Footer />
 
     </div>
