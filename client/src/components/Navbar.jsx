@@ -1,8 +1,16 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../store/AuthContext'
 
 function Navbar() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
 
   return (
     <nav style={{
@@ -35,10 +43,10 @@ function Navbar() {
         alignItems: 'center'
       }}>
         {[
-          { label: 'Home',    path: '/'      },
-          { label: 'Menu',    path: '/menu'  },
-          { label: 'About',   path: '/#about'},
-          { label: 'Contact', path: '/#contact'},
+          { label: 'Home', path: '/' },
+          { label: 'Menu', path: '/menu' },
+          { label: 'About', path: '/#about' },
+          { label: 'Contact', path: '/#contact' },
         ].map(({ label, path }) => (
           <Link key={label} to={path} style={{
             color: 'var(--cream)',
@@ -47,11 +55,7 @@ function Navbar() {
             fontWeight: 500,
             fontSize: '0.95rem',
             opacity: 0.85,
-            transition: 'opacity 0.2s'
-          }}
-            onMouseOver={e => e.target.style.opacity = 1}
-            onMouseOut={e => e.target.style.opacity = 0.85}
-          >
+          }}>
             {label}
           </Link>
         ))}
@@ -60,7 +64,6 @@ function Navbar() {
         <Link to="/cart" style={{
           backgroundColor: 'var(--caramel)',
           color: 'var(--cream)',
-          border: 'none',
           borderRadius: 6,
           padding: '0.5rem 1rem',
           cursor: 'pointer',
@@ -72,19 +75,51 @@ function Navbar() {
           🛒 Cart (0)
         </Link>
 
-        {/* Login */}
-        <Link to="/login" style={{
-          color: 'var(--cream)',
-          textDecoration: 'none',
-          fontFamily: 'Inter, sans-serif',
-          fontWeight: 500,
-          fontSize: '0.95rem',
-          opacity: 0.85
-        }}>
-          Login
-        </Link>
-      </div>
+        {/* Auth */}
+        {user ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Link to="/account" style={{
+              color: 'var(--cream)',
+              textDecoration: 'none',
+              fontFamily: 'Inter, sans-serif',
+              fontWeight: 500,
+              fontSize: '0.95rem',
+              opacity: 0.85
+            }}>
+              👤 {user.name.split(' ')[0]}
+            </Link>
+            <button
+              onClick={handleLogout}
+              style={{
+                backgroundColor: 'transparent',
+                color: 'var(--cream)',
+                border: '1px solid var(--cream)',
+                borderRadius: 6,
+                padding: '0.4rem 0.85rem',
+                cursor: 'pointer',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 500,
+                fontSize: '0.85rem',
+                opacity: 0.85
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <Link to="/login" style={{
+            color: 'var(--cream)',
+            textDecoration: 'none',
+            fontFamily: 'Inter, sans-serif',
+            fontWeight: 500,
+            fontSize: '0.95rem',
+            opacity: 0.85
+          }}>
+            Login
+          </Link>
+        )}
 
+      </div>
     </nav>
   )
 }
