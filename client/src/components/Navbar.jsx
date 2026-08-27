@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/AuthContext'
+import { useCart } from '../store/CartContext'
 
 function Navbar() {
   const { user, logout } = useAuth()
+  const { cart } = useCart()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -72,7 +74,7 @@ function Navbar() {
           fontSize: '0.9rem',
           textDecoration: 'none'
         }}>
-          🛒 Cart (0)
+          🛒 Cart ({cart.totalItems})
         </Link>
 
         {/* Auth */}

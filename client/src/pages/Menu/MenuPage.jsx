@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../services/api'
+import { useCart } from '../../store/CartContext'
 
 function MenuPage() {
   const [products, setProducts]           = useState([])
   const [categories, setCategories]       = useState([])
   const [activeCategory, setActiveCategory] = useState('all')
   const [search, setSearch]               = useState('')
-  const [loading, setLoading]             = useState(true)
+  const [loading, setLoading] = useState(true)
+  const { addToCart } = useCart()
 
   // Fetch categories
   useEffect(() => {
@@ -266,17 +268,20 @@ function MenuPage() {
                     }}>
                       ₹{item.price}
                     </p>
-                    <button style={{
-                      backgroundColor: 'var(--espresso)',
-                      color: 'var(--cream)',
-                      border: 'none',
-                      borderRadius: 6,
-                      padding: '0.5rem 1rem',
-                      cursor: 'pointer',
-                      fontFamily: 'Inter, sans-serif',
-                      fontWeight: 600,
-                      fontSize: '0.85rem'
-                    }}>
+                    <button
+                      onClick={() => addToCart(item)}
+                      style={{
+                        backgroundColor: 'var(--espresso)',
+                        color: 'var(--cream)',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '0.5rem 1rem',
+                        cursor: 'pointer',
+                        fontFamily: 'Inter, sans-serif',
+                        fontWeight: 600,
+                        fontSize: '0.85rem'
+                      }}
+                    >
                       Add to Cart
                     </button>
                   </div>
