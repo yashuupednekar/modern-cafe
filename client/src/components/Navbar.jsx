@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -14,26 +15,32 @@ function Navbar() {
       top: 0,
       zIndex: 100,
     }}>
-      
+
       {/* Logo */}
-      <div style={{
+      <Link to="/" style={{
         color: 'var(--cream)',
         fontFamily: 'Playfair Display, serif',
         fontSize: '1.5rem',
         fontWeight: 700,
-        letterSpacing: '0.05em'
+        letterSpacing: '0.05em',
+        textDecoration: 'none'
       }}>
         Modern Cafe
-      </div>
+      </Link>
 
       {/* Desktop Links */}
       <div style={{
         display: 'flex',
         gap: '2rem',
         alignItems: 'center'
-      }} className="desktop-nav">
-        {['Home', 'Menu', 'About', 'Contact'].map(link => (
-          <a key={link} href={`#${link.toLowerCase()}`} style={{
+      }}>
+        {[
+          { label: 'Home',    path: '/'      },
+          { label: 'Menu',    path: '/menu'  },
+          { label: 'About',   path: '/#about'},
+          { label: 'Contact', path: '/#contact'},
+        ].map(({ label, path }) => (
+          <Link key={label} to={path} style={{
             color: 'var(--cream)',
             textDecoration: 'none',
             fontFamily: 'Inter, sans-serif',
@@ -45,12 +52,12 @@ function Navbar() {
             onMouseOver={e => e.target.style.opacity = 1}
             onMouseOut={e => e.target.style.opacity = 0.85}
           >
-            {link}
-          </a>
+            {label}
+          </Link>
         ))}
 
-        {/* Cart Icon */}
-        <button style={{
+        {/* Cart */}
+        <Link to="/cart" style={{
           backgroundColor: 'var(--caramel)',
           color: 'var(--cream)',
           border: 'none',
@@ -59,13 +66,14 @@ function Navbar() {
           cursor: 'pointer',
           fontFamily: 'Inter, sans-serif',
           fontWeight: 600,
-          fontSize: '0.9rem'
+          fontSize: '0.9rem',
+          textDecoration: 'none'
         }}>
           🛒 Cart (0)
-        </button>
+        </Link>
 
         {/* Login */}
-        <a href="#login" style={{
+        <Link to="/login" style={{
           color: 'var(--cream)',
           textDecoration: 'none',
           fontFamily: 'Inter, sans-serif',
@@ -74,24 +82,8 @@ function Navbar() {
           opacity: 0.85
         }}>
           Login
-        </a>
+        </Link>
       </div>
-
-      {/* Mobile Hamburger */}
-      <button
-        onClick={() => setMenuOpen(!menuOpen)}
-        style={{
-          display: 'none',
-          backgroundColor: 'transparent',
-          border: 'none',
-          color: 'var(--cream)',
-          fontSize: '1.5rem',
-          cursor: 'pointer'
-        }}
-        className="hamburger"
-      >
-        {menuOpen ? '✕' : '☰'}
-      </button>
 
     </nav>
   )
