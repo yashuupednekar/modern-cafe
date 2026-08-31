@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
+const User = require('../models/User')
 
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   try {
     const token = req.cookies.token
 
@@ -16,11 +17,16 @@ const protect = (req, res, next) => {
   }
 }
 
-const adminOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+const adminOnly = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId)
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' })
+    }
+    req.user = user
     next()
-  } else {
-    res.status(403).json({ success: false, message: 'Admin access required' })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
   }
 }
 
