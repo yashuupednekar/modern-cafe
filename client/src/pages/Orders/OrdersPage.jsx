@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import { useAuth } from '../../store/AuthContext'
+import API_URL from '../../services/config'
 
 const statusColors = {
   pending:          { bg: '#fef9c3', color: '#854d0e' },
@@ -22,7 +23,7 @@ function OrdersPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/orders', {
+        const res = await fetch(`${API_URL}/orders`, {
           credentials: 'include'
         })
         const data = await res.json()

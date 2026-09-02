@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import API_URL from '../services/config'
 
 const AuthContext = createContext()
 
@@ -6,17 +7,14 @@ export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Check if user is already logged in on app load
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/auth/me', {
+        const res = await fetch(`${API_URL}/auth/me`, {
           credentials: 'include'
         })
         const data = await res.json()
-        if (data.success) {
-          setUser(data.user)
-        }
+        if (data.success) setUser(data.user)
       } catch (err) {
         setUser(null)
       } finally {
@@ -29,7 +27,7 @@ export function AuthProvider({ children }) {
   const login = (userData) => setUser(userData)
 
   const logout = async () => {
-    await fetch('http://localhost:5000/api/auth/logout', {
+    await fetch(`${API_URL}/auth/logout`, {
       method: 'POST',
       credentials: 'include'
     })

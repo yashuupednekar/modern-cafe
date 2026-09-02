@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import { useCart } from '../../store/CartContext'
 import { useAuth } from '../../store/AuthContext'
+import API_URL from '../../services/config'
 
 function CheckoutPage() {
   const { cart, clearCart } = useCart()
@@ -40,7 +41,7 @@ function CheckoutPage() {
 
     setLoading(true)
     try {
-      const res = await fetch('http://localhost:5000/api/orders', {
+      const res = await fetch(`${API_URL}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

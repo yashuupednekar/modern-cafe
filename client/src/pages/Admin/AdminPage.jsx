@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../store/AuthContext'
+import API_URL from '../../services/config'
 
 const statusColors = {
   pending:            { bg: '#fef9c3', color: '#854d0e' },
@@ -43,7 +44,7 @@ function AdminPage() {
   const fetchDashboard = async () => {
     setLoading(true)
     try {
-      const res  = await fetch('http://localhost:5000/api/admin/dashboard', { credentials: 'include' })
+      await fetch(`${API_URL}/admin/dashboard`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setDashboard(data.dashboard)
     } catch (err) { console.error(err) }
@@ -53,7 +54,7 @@ function AdminPage() {
   const fetchOrders = async () => {
     setLoading(true)
     try {
-      const res  = await fetch('http://localhost:5000/api/admin/orders', { credentials: 'include' })
+      await fetch(`${API_URL}/admin/orders`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setOrders(data.orders)
     } catch (err) { console.error(err) }
@@ -63,7 +64,7 @@ function AdminPage() {
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      const res  = await fetch('http://localhost:5000/api/admin/products', { credentials: 'include' })
+      await fetch(`${API_URL}/admin/products`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setProducts(data.products)
     } catch (err) { console.error(err) }
@@ -73,7 +74,7 @@ function AdminPage() {
   const fetchCustomers = async () => {
     setLoading(true)
     try {
-      const res  = await fetch('http://localhost:5000/api/admin/customers', { credentials: 'include' })
+      await fetch(`${API_URL}/admin/customers`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setCustomers(data.customers)
     } catch (err) { console.error(err) }
@@ -82,7 +83,7 @@ function AdminPage() {
 
   const fetchCategories = async () => {
     try {
-      const res  = await fetch('http://localhost:5000/api/categories', { credentials: 'include' })
+      await fetch(`${API_URL}/categories`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setCategories(data.categories)
     } catch (err) { console.error(err) }
@@ -98,7 +99,7 @@ function AdminPage() {
 
   const updateOrderStatus = async (orderId, status) => {
     try {
-      await fetch(`http://localhost:5000/api/admin/orders/${orderId}/status`, {
+      await fetch(`${API_URL}/admin/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -110,7 +111,7 @@ function AdminPage() {
 
   const handleDeleteProduct = async (id) => {
     if (!window.confirm('Delete this product?')) return
-    await fetch(`http://localhost:5000/api/admin/products/${id}`, {
+    await fetch(`${API_URL}/admin/products/${id}`, {
       method: 'DELETE',
       credentials: 'include'
     })
@@ -119,8 +120,8 @@ function AdminPage() {
 
   const handleProductSubmit = async () => {
     const url    = editingProduct
-      ? `http://localhost:5000/api/admin/products/${editingProduct._id}`
-      : 'http://localhost:5000/api/admin/products'
+      ? `${API_URL}/admin/products/${editingProduct._id}`
+      : `${API_URL}/admin/products`
     const method = editingProduct ? 'PUT' : 'POST'
 
     await fetch(url, {
@@ -150,7 +151,7 @@ function AdminPage() {
   }
 
   const handleStockUpdate = async (id, stock) => {
-    await fetch(`http://localhost:5000/api/admin/products/${id}/stock`, {
+   await fetch(`${API_URL}/admin/products/${id}/stock`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
