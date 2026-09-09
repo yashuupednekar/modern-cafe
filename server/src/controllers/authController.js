@@ -87,10 +87,7 @@ const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid email or password' })
     }
 
-    // Check if active
-    if (!user.isActive) {
-      return res.status(403).json({ success: false, message: 'Account is disabled' })
-    }
+    // Check if active                                                                                                                                              `                                                                                                                                                                                                                                                                           
 
     // Generate token
     const token = generateToken(user._id)
@@ -111,8 +108,38 @@ const login = async (req, res) => {
         name:  user.name,
         email: user.email,
         phone: user.phone,
-        role:  user.role
-      }
+        role:  user.role                                                                                                       
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      }                                                       
     })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
