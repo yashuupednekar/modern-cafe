@@ -1,3 +1,9 @@
+import { useEffect, useRef } from 'react'
+import { gsap } from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
+
 const reviews = [
   {
     id: 1,
@@ -26,14 +32,51 @@ const reviews = [
 ]
 
 function Testimonials() {
+  const sectionRef = useRef(null)
+  const headingRef = useRef(null)
+  const cardsRef   = useRef(null)
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+
+      gsap.fromTo(headingRef.current,
+        { opacity: 0, y: 40 },
+        {
+          opacity: 1, y: 0, duration: 1,
+          scrollTrigger: {
+            trigger: headingRef.current,
+            start: 'top 85%',
+          }
+        }
+      )
+
+      gsap.fromTo(Array.from(cardsRef.current?.children || []),
+        { opacity: 0, y: 50, scale: 0.95 },
+        {
+          opacity: 1, y: 0, scale: 1,
+          duration: 0.7,
+          stagger: 0.15,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: cardsRef.current,
+            start: 'top 85%',
+          }
+        }
+      )
+
+    }, sectionRef)
+
+    return () => ctx.revert()
+  }, [])
+
   return (
-    <section style={{
+    <section ref={sectionRef} style={{
       backgroundColor: 'var(--beige)',
       padding: '5rem 2rem',
     }}>
 
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+      <div ref={headingRef} style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <p style={{
           fontFamily: 'Inter, sans-serif',
           color: 'var(--caramel)',
@@ -56,7 +99,7 @@ function Testimonials() {
       </div>
 
       {/* Cards */}
-      <div style={{
+      <div ref={cardsRef} style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: '1.5rem',
@@ -69,10 +112,12 @@ function Testimonials() {
             borderRadius: 12,
             padding: '2rem',
             boxShadow: '0 2px 12px rgba(44, 26, 14, 0.08)',
-          }}>
-
+          }}
+            onMouseOver={e => gsap.to(e.currentTarget, { y: -5, duration: 0.25 })}
+            onMouseOut={e => gsap.to(e.currentTarget, { y: 0, duration: 0.25 })}
+          >
             {/* Stars */}
-            <div style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>
+            <div style={{ marginBottom: '1rem', fontSize: '1.1rem', color: 'var(--caramel)' }}>
               {'★'.repeat(review.rating)}
             </div>
 
@@ -91,8 +136,7 @@ function Testimonials() {
             {/* Author */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{
-                width: 44,
-                height: 44,
+                width: 44, height: 44,
                 borderRadius: '50%',
                 backgroundColor: 'var(--espresso)',
                 color: 'var(--cream)',
@@ -106,24 +150,14 @@ function Testimonials() {
                 {review.avatar}
               </div>
               <div>
-                <p style={{
-                  fontFamily: 'Inter, sans-serif',
-                  color: 'var(--espresso)',
-                  fontWeight: 600,
-                  fontSize: '0.95rem'
-                }}>
+                <p style={{ fontFamily: 'Inter, sans-serif', color: 'var(--espresso)', fontWeight: 600, fontSize: '0.95rem' }}>
                   {review.name}
                 </p>
-                <p style={{
-                  fontFamily: 'Inter, sans-serif',
-                  color: 'var(--text-light)',
-                  fontSize: '0.8rem'
-                }}>
+                <p style={{ fontFamily: 'Inter, sans-serif', color: 'var(--text-light)', fontSize: '0.8rem' }}>
                   {review.location}
                 </p>
               </div>
             </div>
-
           </div>
         ))}
       </div>
