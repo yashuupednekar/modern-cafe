@@ -13,38 +13,51 @@ const statusColors = {
   cancelled:          { bg: '#fee2e2', color: '#991b1b' },
 }
 
-const orderStatuses = ['pending','confirmed','preparing','ready','out-for-delivery','delivered','cancelled']
+const statusOptions = [
+  'pending', 'confirmed', 'preparing', 'ready',
+  'out-for-delivery', 'delivered', 'cancelled'
+]
 
 function AdminPage() {
-  const { user } = useAuth()
-  const navigate  = useNavigate()
+  const { user, loading: authLoading } = useAuth()
+  const navigate = useNavigate()
 
-  const [activeTab, setActiveTab]     = useState('dashboard')
-  const [dashboard, setDashboard]     = useState(null)
-  const [orders, setOrders]           = useState([])
-  const [products, setProducts]       = useState([])
-  const [customers, setCustomers]     = useState([])
-  const [loading, setLoading]         = useState(true)
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [dashboard, setDashboard] = useState(null)
+  const [orders, setOrders]       = useState([])
+  const [products, setProducts]   = useState([])
+  const [customers, setCustomers] = useState([])
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading]     = useState(false)
 
   // Product form
   const [showProductForm, setShowProductForm] = useState(false)
   const [editingProduct, setEditingProduct]   = useState(null)
-  const [productForm, setProductForm]         = useState({
-    name: '', slug: '', description: '', price: '', emoji: '☕', stock: '', category: ''
+  const [productForm, setProductForm] = useState({
+    name: '', description: '', price: '', stock: '', emoji: '☕',
+    category: '', isFeatured: false, isAvailable: true
   })
-  const [categories, setCategories] = useState([])
 
   useEffect(() => {
-    if (!user) { navigate('/login'); return }
-    if (user.role !== 'admin') { navigate('/'); return }
+    if (authLoading) return
+    if (!user || user.role !== 'admin') {
+      navigate('/login')
+      return
+    }
     fetchDashboard()
-    fetchCategories()
-  }, [user])
+  }, [user, authLoading])
+
+  useEffect(() => {
+    if (activeTab === 'orders')    fetchOrders()
+    if (activeTab === 'products')  { fetchProducts(); fetchCategories() }
+    if (activeTab === 'customers') fetchCustomers()
+    if (activeTab === 'dashboard') fetchDashboard()
+  }, [activeTab])
 
   const fetchDashboard = async () => {
     setLoading(true)
     try {
-      await fetch(`${API_URL}/admin/dashboard`, { credentials: 'include' })
+      const res  = await fetch(`${API_URL}/admin/dashboard`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setDashboard(data.dashboard)
     } catch (err) { console.error(err) }
@@ -54,7 +67,7 @@ function AdminPage() {
   const fetchOrders = async () => {
     setLoading(true)
     try {
-      await fetch(`${API_URL}/admin/orders`, { credentials: 'include' })
+      const res  = await fetch(`${API_URL}/admin/orders`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setOrders(data.orders)
     } catch (err) { console.error(err) }
@@ -64,49 +77,56 @@ function AdminPage() {
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      await fetch(`${API_URL}/admin/products`, { credentials: 'include' })
+      const res  = await fetch(`${API_URL}/admin/products`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setProducts(data.products)
     } catch (err) { console.error(err) }
     setLoading(false)
   }
 
+  const fetchCategories = async () => {
+    try {
+      const res  = await fetch(`${API_URL}/categories`, { credentials: 'include' })
+      const data = await res.json()
+      if (data.success) setCategories(data.categories || data)
+    } catch (err) { console.error(err) }
+  }
+
   const fetchCustomers = async () => {
     setLoading(true)
     try {
-      await fetch(`${API_URL}/admin/customers`, { credentials: 'include' })
+      const res  = await fetch(`${API_URL}/admin/customers`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) setCustomers(data.customers)
     } catch (err) { console.error(err) }
     setLoading(false)
   }
 
-  const fetchCategories = async () => {
-    try {
-      await fetch(`${API_URL}/categories`, { credentials: 'include' })
-      const data = await res.json()
-      if (data.success) setCategories(data.categories)
-    } catch (err) { console.error(err) }
+  const handleStatusUpdate = async (orderId, orderStatus) => {
+    await fetch(`${API_URL}/admin/orders/${orderId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ orderStatus })
+    })
+    fetchOrders()
+    if (activeTab === 'dashboard') fetchDashboard()
   }
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab)
-    if (tab === 'dashboard') fetchDashboard()
-    if (tab === 'orders')    fetchOrders()
-    if (tab === 'products')  fetchProducts()
-    if (tab === 'customers') fetchCustomers()
+  const handleStockUpdate = async (id, stock) => {
+    await fetch(`${API_URL}/admin/products/${id}/stock`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ stock: Number(stock) })
+    })
+    fetchProducts()
+    if (activeTab === 'dashboard') fetchDashboard()
   }
 
-  const updateOrderStatus = async (orderId, status) => {
-    try {
-      await fetch(`${API_URL}/admin/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ orderStatus: status })
-      })
-      fetchOrders()
-    } catch (err) { console.error(err) }
+  const adjustStock = (product, delta) => {
+    const newStock = Math.max(0, (product.stock || 0) + delta)
+    handleStockUpdate(product._id, newStock)
   }
 
   const handleDeleteProduct = async (id) => {
@@ -118,81 +138,68 @@ function AdminPage() {
     fetchProducts()
   }
 
-  const handleProductSubmit = async () => {
-    const url    = editingProduct
-      ? `${API_URL}/admin/products/${editingProduct._id}`
-      : `${API_URL}/admin/products`
-    const method = editingProduct ? 'PUT' : 'POST'
-
-    await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ ...productForm, price: Number(productForm.price), stock: Number(productForm.stock) })
-    })
-    setShowProductForm(false)
-    setEditingProduct(null)
-    setProductForm({ name: '', slug: '', description: '', price: '', emoji: '☕', stock: '', category: '' })
-    fetchProducts()
-  }
-
   const handleEditProduct = (product) => {
     setEditingProduct(product)
     setProductForm({
-      name:        product.name,
-      slug:        product.slug,
-      description: product.description,
-      price:       product.price,
-      emoji:       product.emoji,
-      stock:       product.stock,
-      category:    product.category?._id || ''
+      name: product.name || '',
+      description: product.description || '',
+      price: product.price || '',
+      stock: product.stock || 0,
+      emoji: product.emoji || '☕',
+      category: product.category?._id || product.category || '',
+      isFeatured: product.isFeatured || false,
+      isAvailable: product.isAvailable !== false
     })
     setShowProductForm(true)
   }
 
-  const handleStockUpdate = async (id, stock) => {
-   await fetch(`${API_URL}/admin/products/${id}/stock`, {
-      method: 'PUT',
+  const handleProductSubmit = async () => {
+    const url = editingProduct
+      ? `${API_URL}/admin/products/${editingProduct._id}`
+      : `${API_URL}/admin/products`
+
+    const body = {
+      ...productForm,
+      price: Number(productForm.price),
+      stock: Number(productForm.stock),
+      slug: productForm.name.toLowerCase().replace(/\s+/g, '-')
+    }
+
+    await fetch(url, {
+      method: editingProduct ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ stock: Number(stock) })
+      body: JSON.stringify(body)
     })
+
+    setShowProductForm(false)
+    setEditingProduct(null)
     fetchProducts()
   }
 
-  const sidebarStyle = {
-    width: 220,
-    backgroundColor: 'var(--espresso)',
-    minHeight: '100vh',
-    padding: '1.5rem 0',
-    flexShrink: 0
-  }
-
   const tabStyle = (tab) => ({
-    display: 'block',
-    width: '100%',
-    padding: '0.85rem 1.5rem',
-    backgroundColor: activeTab === tab ? 'var(--coffee)' : 'transparent',
-    color: 'var(--cream)',
+    padding: '0.75rem 1.25rem',
     border: 'none',
-    textAlign: 'left',
+    borderBottom: activeTab === tab ? '3px solid var(--espresso)' : '3px solid transparent',
+    backgroundColor: 'transparent',
+    color: activeTab === tab ? 'var(--espresso)' : 'var(--text-light)',
     fontFamily: 'Inter, sans-serif',
     fontWeight: activeTab === tab ? 600 : 400,
-    fontSize: '0.95rem',
-    cursor: 'pointer',
-    borderLeft: activeTab === tab ? '3px solid var(--caramel)' : '3px solid transparent'
+    fontSize: '0.9rem',
+    cursor: 'pointer'
   })
 
   const cardStyle = {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: '1.5rem',
-    boxShadow: '0 2px 12px rgba(44,26,14,0.08)'
+    boxShadow: '0 2px 12px rgba(44,26,14,0.08)',
+    marginBottom: '1rem'
   }
 
   const inputStyle = {
     width: '100%',
-    padding: '0.65rem 1rem',
+    padding: '0.65rem 0.9rem',
     borderRadius: 8,
     border: '2px solid var(--beige)',
     fontFamily: 'Inter, sans-serif',
@@ -201,48 +208,79 @@ function AdminPage() {
     boxSizing: 'border-box'
   }
 
-  if (loading && !dashboard) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
-      Loading admin panel...
-    </div>
-  )
+  if (authLoading) {
+    return <div style={{ padding: '4rem', textAlign: 'center', fontFamily: 'Inter, sans-serif' }}>Loading...</div>
+  }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--off-white)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--off-white)', display: 'flex' }}>
 
       {/* Sidebar */}
-      <div style={sidebarStyle}>
-        <div style={{ padding: '0 1.5rem 1.5rem', borderBottom: '1px solid rgba(245,236,215,0.15)' }}>
-          <h2 style={{ fontFamily: 'Playfair Display, serif', color: 'var(--cream)', fontSize: '1.2rem' }}>
-            Modern Cafe
-          </h2>
-          <p style={{ fontFamily: 'Inter, sans-serif', color: 'var(--caramel)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-            Admin Panel
-          </p>
+      <div style={{
+        width: 220,
+        backgroundColor: 'var(--espresso)',
+        color: 'var(--cream)',
+        padding: '2rem 0',
+        minHeight: '100vh',
+        flexShrink: 0
+      }}>
+        <div style={{
+          fontFamily: 'Playfair Display, serif',
+          fontSize: '1.3rem',
+          fontWeight: 700,
+          padding: '0 1.5rem',
+          marginBottom: '2rem'
+        }}>
+          Admin Panel
         </div>
-
-        <nav style={{ marginTop: '1rem' }}>
-          {[
-            { tab: 'dashboard', label: '📊 Dashboard' },
-            { tab: 'orders',    label: '📦 Orders'    },
-            { tab: 'products',  label: '☕ Products'  },
-            { tab: 'customers', label: '👥 Customers' },
-          ].map(({ tab, label }) => (
-            <button key={tab} onClick={() => handleTabChange(tab)} style={tabStyle(tab)}>
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ position: 'absolute', bottom: '1.5rem', padding: '0 1.5rem' }}>
-          <a href="/" style={{ color: 'var(--cream)', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', opacity: 0.7, textDecoration: 'none' }}>
-            ← Back to Site
-          </a>
-        </div>
+        {[
+          { tab: 'dashboard', label: '📊 Dashboard' },
+          { tab: 'orders',    label: '📦 Orders' },
+          { tab: 'products',  label: '☕ Products' },
+          { tab: 'customers', label: '👥 Customers' },
+        ].map(({ tab, label }) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              padding: '0.85rem 1.5rem',
+              border: 'none',
+              backgroundColor: activeTab === tab ? 'var(--coffee)' : 'transparent',
+              color: 'var(--cream)',
+              fontFamily: 'Inter, sans-serif',
+              fontWeight: activeTab === tab ? 600 : 400,
+              fontSize: '0.95rem',
+              cursor: 'pointer'
+            }}
+          >
+            {label}
+          </button>
+        ))}
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            display: 'block',
+            width: '100%',
+            textAlign: 'left',
+            padding: '0.85rem 1.5rem',
+            border: 'none',
+            backgroundColor: 'transparent',
+            color: 'var(--beige)',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            marginTop: '2rem'
+          }}
+        >
+          ← Back to Site
+        </button>
       </div>
 
-      {/* Main Content */}
-      <div style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+      {/* Main */}
+      <div style={{ flex: 1, padding: '2rem', overflow: 'auto' }}>
 
         {/* ── DASHBOARD ── */}
         {activeTab === 'dashboard' && dashboard && (
@@ -251,68 +289,63 @@ function AdminPage() {
               Dashboard
             </h1>
 
-            {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
               {[
-                { label: 'Total Orders',   value: dashboard.totalOrders,   icon: '📦' },
-                { label: 'Active Orders',  value: dashboard.activeOrders,  icon: '🔥' },
-                { label: 'Total Products', value: dashboard.totalProducts, icon: '☕' },
-                { label: 'Customers',      value: dashboard.totalUsers,    icon: '👥' },
-                { label: 'Revenue (Paid)', value: `₹${dashboard.totalRevenue}`, icon: '💰' },
-              ].map(({ label, value, icon }) => (
-                <div key={label} style={{ ...cardStyle, textAlign: 'center' }}>
-                  <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{icon}</p>
-                  <p style={{ fontFamily: 'Playfair Display, serif', color: 'var(--espresso)', fontSize: '1.5rem', fontWeight: 700 }}>{value}</p>
-                  <p style={{ fontFamily: 'Inter, sans-serif', color: 'var(--text-light)', fontSize: '0.85rem' }}>{label}</p>
+                { label: 'Total Orders',  value: dashboard.totalOrders },
+                { label: 'Active Orders', value: dashboard.activeOrders },
+                { label: 'Products',      value: dashboard.totalProducts },
+                { label: 'Customers',     value: dashboard.totalUsers },
+                { label: 'Revenue',       value: `₹${dashboard.totalRevenue}` },
+              ].map(({ label, value }) => (
+                <div key={label} style={cardStyle}>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '0.4rem' }}>{label}</p>
+                  <p style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.6rem', fontWeight: 700, color: 'var(--espresso)' }}>{value}</p>
                 </div>
               ))}
             </div>
 
-            {/* Low Stock */}
-            {dashboard.lowStockProducts.length > 0 && (
-              <div style={{ ...cardStyle, marginBottom: '2rem' }}>
-                <h2 style={{ fontFamily: 'Playfair Display, serif', color: '#dc2626', fontSize: '1.1rem', marginBottom: '1rem' }}>
-                  ⚠️ Low Stock Alert
-                </h2>
+            {/* Low stock alerts */}
+            {dashboard.lowStockProducts?.length > 0 && (
+              <div style={{ ...cardStyle, borderLeft: '4px solid #dc2626' }}>
+                <h3 style={{ fontFamily: 'Playfair Display, serif', color: '#dc2626', marginBottom: '1rem' }}>
+                  ⚠️ Low Stock Alerts
+                </h3>
                 {dashboard.lowStockProducts.map(p => (
-                  <div key={p._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--beige)', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem' }}>
+                  <div key={p._id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem' }}>
                     <span>{p.emoji} {p.name}</span>
-                    <span style={{ color: '#dc2626', fontWeight: 600 }}>Stock: {p.stock}</span>
+                    <span style={{ color: '#dc2626', fontWeight: 600 }}>{p.stock} left</span>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Recent Orders */}
+            {/* Recent orders */}
             <div style={cardStyle}>
-              <h2 style={{ fontFamily: 'Playfair Display, serif', color: 'var(--espresso)', fontSize: '1.1rem', marginBottom: '1rem' }}>
+              <h3 style={{ fontFamily: 'Playfair Display, serif', color: 'var(--espresso)', marginBottom: '1rem' }}>
                 Recent Orders
-              </h2>
-              {dashboard.recentOrders.map(order => (
-                <div key={order._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid var(--beige)', flexWrap: 'wrap', gap: '0.5rem' }}>
+              </h3>
+              {dashboard.recentOrders?.map(order => (
+                <div key={order._id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.75rem 0', borderBottom: '1px solid var(--beige)',
+                  fontFamily: 'Inter, sans-serif', fontSize: '0.9rem'
+                }}>
                   <div>
-                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-dark)' }}>
-                      {order.user?.name || 'Guest'}
-                    </p>
-                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', color: 'var(--text-light)' }}>
-                      #{order._id.slice(-8).toUpperCase()}
-                    </p>
+                    <span style={{ fontWeight: 600 }}>{order.user?.name || 'Guest'}</span>
+                    <span style={{ color: 'var(--text-light)', marginLeft: '0.75rem' }}>
+                      #{order._id.slice(-6).toUpperCase()}
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <span style={{
                       backgroundColor: statusColors[order.orderStatus]?.bg,
                       color: statusColors[order.orderStatus]?.color,
-                      padding: '0.25rem 0.65rem',
-                      borderRadius: 20,
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '0.75rem',
-                      fontWeight: 600
+                      padding: '0.25rem 0.6rem', borderRadius: 12, fontSize: '0.75rem', fontWeight: 600,
+                      textTransform: 'capitalize'
                     }}>
                       {order.orderStatus}
                     </span>
-                    <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, color: 'var(--espresso)' }}>
-                      ₹{order.total}
-                    </span>
+                    <span style={{ fontWeight: 600, color: 'var(--espresso)' }}>₹{order.total}</span>
                   </div>
                 </div>
               ))}
@@ -326,53 +359,81 @@ function AdminPage() {
             <h1 style={{ fontFamily: 'Playfair Display, serif', color: 'var(--espresso)', marginBottom: '1.5rem' }}>
               Orders ({orders.length})
             </h1>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {orders.map(order => (
-                <div key={order._id} style={cardStyle}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                    <div>
-                      <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: 'var(--text-dark)' }}>
-                        {order.user?.name} — #{order._id.slice(-8).toUpperCase()}
-                      </p>
-                      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: 'var(--text-light)', marginTop: '0.25rem' }}>
-                        {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {' · '}{order.fulfillment} · ₹{order.total}
-                      </p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
-                        {order.items.map((item, i) => (
-                          <span key={i} style={{ backgroundColor: 'var(--beige)', padding: '0.2rem 0.6rem', borderRadius: 20, fontFamily: 'Inter, sans-serif', fontSize: '0.8rem' }}>
-                            {item.emoji} {item.name} ×{item.quantity}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
 
-                    {/* Status Selector */}
-                    <div>
-                      <select
-                        value={order.orderStatus}
-                        onChange={e => updateOrderStatus(order._id, e.target.value)}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          borderRadius: 8,
-                          border: '2px solid var(--beige)',
-                          fontFamily: 'Inter, sans-serif',
-                          fontWeight: 600,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          backgroundColor: statusColors[order.orderStatus]?.bg,
-                          color: statusColors[order.orderStatus]?.color
-                        }}
-                      >
-                        {orderStatuses.map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
+            {loading ? (
+              <p style={{ fontFamily: 'Inter, sans-serif', color: 'var(--text-light)' }}>Loading...</p>
+            ) : orders.map(order => (
+              <div key={order._id} style={cardStyle}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', color: 'var(--text-light)' }}>
+                      Order #{order._id.slice(-8).toUpperCase()} · {new Date(order.createdAt).toLocaleString('en-IN')}
+                    </p>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: 'var(--espresso)', marginTop: '0.25rem' }}>
+                      👤 {order.user?.name || 'Guest'} · {order.user?.email || '—'}
+                    </p>
                   </div>
+                  <select
+                    value={order.orderStatus}
+                    onChange={e => handleStatusUpdate(order._id, e.target.value)}
+                    style={{
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: 8,
+                      border: '2px solid var(--beige)',
+                      fontFamily: 'Inter, sans-serif',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      backgroundColor: statusColors[order.orderStatus]?.bg,
+                      color: statusColors[order.orderStatus]?.color,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {statusOptions.map(s => (
+                      <option key={s} value={s}>{s.replace(/-/g, ' ')}</option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-            </div>
+
+                {/* Items */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                  {order.items.map((item, i) => (
+                    <span key={i} style={{
+                      backgroundColor: 'var(--beige)',
+                      padding: '0.3rem 0.75rem',
+                      borderRadius: 20,
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: '0.85rem'
+                    }}>
+                      {item.emoji} {item.name} × {item.quantity}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Meta + Address */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', borderTop: '1px solid var(--beige)', paddingTop: '0.75rem' }}>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: 'var(--text-mid)' }}>
+                    <span>{order.fulfillment === 'delivery' ? '🚀 Delivery' : '🏪 Pickup'}</span>
+                    <span style={{ margin: '0 0.75rem' }}>·</span>
+                    <span>💳 {order.paymentMethod?.toUpperCase()}</span>
+                    <span style={{ margin: '0 0.75rem' }}>·</span>
+                    <span style={{ color: order.paymentStatus === 'paid' ? 'green' : 'inherit', fontWeight: order.paymentStatus === 'paid' ? 600 : 400 }}>
+                      {order.paymentStatus === 'paid' ? '✅ Paid' : order.paymentStatus}
+                    </span>
+                  </div>
+                  <p style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, color: 'var(--espresso)', fontSize: '1.1rem' }}>
+                    ₹{order.total}
+                  </p>
+                </div>
+
+                {order.address && (
+                  <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--off-white)', borderRadius: 8, fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: 'var(--text-mid)' }}>
+                    📍 {order.address.street}, {order.address.city}, {order.address.state} - {order.address.pincode}
+                    {order.address.phone && <span> · 📞 {order.address.phone}</span>}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -384,73 +445,81 @@ function AdminPage() {
                 Products ({products.length})
               </h1>
               <button
-                onClick={() => { setShowProductForm(true); setEditingProduct(null); setProductForm({ name: '', slug: '', description: '', price: '', emoji: '☕', stock: '', category: '' }) }}
-                style={{ backgroundColor: 'var(--espresso)', color: 'var(--cream)', border: 'none', borderRadius: 8, padding: '0.65rem 1.25rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600 }}
+                onClick={() => {
+                  setEditingProduct(null)
+                  setProductForm({ name: '', description: '', price: '', stock: 10, emoji: '☕', category: categories[0]?._id || '', isFeatured: false, isAvailable: true })
+                  setShowProductForm(true)
+                }}
+                style={{
+                  backgroundColor: 'var(--espresso)', color: 'var(--cream)',
+                  border: 'none', borderRadius: 8, padding: '0.65rem 1.25rem',
+                  cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600
+                }}
               >
                 + Add Product
               </button>
             </div>
 
-            {/* Product Form */}
             {showProductForm && (
               <div style={{ ...cardStyle, marginBottom: '1.5rem' }}>
-                <h2 style={{ fontFamily: 'Playfair Display, serif', color: 'var(--espresso)', marginBottom: '1rem' }}>
-                  {editingProduct ? 'Edit Product' : 'Add New Product'}
-                </h2>
+                <h3 style={{ fontFamily: 'Playfair Display, serif', color: 'var(--espresso)', marginBottom: '1rem' }}>
+                  {editingProduct ? 'Edit Product' : 'New Product'}
+                </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  {[
-                    { label: 'Name',        key: 'name',        placeholder: 'Cappuccino' },
-                    { label: 'Slug',        key: 'slug',        placeholder: 'cappuccino' },
-                    { label: 'Price (₹)',   key: 'price',       placeholder: '180' },
-                    { label: 'Stock',       key: 'stock',       placeholder: '50' },
-                    { label: 'Emoji',       key: 'emoji',       placeholder: '☕' },
-                  ].map(({ label, key, placeholder }) => (
-                    <div key={key}>
-                      <label style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-dark)' }}>{label}</label>
-                      <input
-                        value={productForm[key]}
-                        onChange={e => setProductForm({ ...productForm, [key]: e.target.value })}
-                        placeholder={placeholder}
-                        style={inputStyle}
-                      />
-                    </div>
-                  ))}
                   <div>
-                    <label style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-dark)' }}>Category</label>
-                    <select
-                      value={productForm.category}
-                      onChange={e => setProductForm({ ...productForm, category: e.target.value })}
-                      style={inputStyle}
-                    >
-                      <option value="">Select category</option>
-                      {categories.map(cat => (
-                        <option key={cat._id} value={cat._id}>{cat.name}</option>
+                    <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Name</label>
+                    <input value={productForm.name} onChange={e => setProductForm({ ...productForm, name: e.target.value })} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Emoji</label>
+                    <input value={productForm.emoji} onChange={e => setProductForm({ ...productForm, emoji: e.target.value })} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Price (₹)</label>
+                    <input type="number" value={productForm.price} onChange={e => setProductForm({ ...productForm, price: e.target.value })} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Stock</label>
+                    <input type="number" value={productForm.stock} onChange={e => setProductForm({ ...productForm, stock: e.target.value })} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Category</label>
+                    <select value={productForm.category} onChange={e => setProductForm({ ...productForm, category: e.target.value })} style={inputStyle}>
+                      <option value="">Select</option>
+                      {categories.map(c => (
+                        <option key={c._id} value={c._id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
                 </div>
                 <div style={{ marginTop: '1rem' }}>
-                  <label style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-dark)' }}>Description</label>
+                  <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Description</label>
                   <textarea
                     value={productForm.description}
                     onChange={e => setProductForm({ ...productForm, description: e.target.value })}
-                    placeholder="Product description..."
                     rows={3}
                     style={{ ...inputStyle, resize: 'vertical' }}
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                  <button onClick={handleProductSubmit} style={{ backgroundColor: 'var(--espresso)', color: 'var(--cream)', border: 'none', borderRadius: 8, padding: '0.65rem 1.5rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
-                    {editingProduct ? 'Update Product' : 'Add Product'}
+                  <button onClick={handleProductSubmit} style={{
+                    backgroundColor: 'var(--espresso)', color: 'var(--cream)',
+                    border: 'none', borderRadius: 8, padding: '0.65rem 1.5rem',
+                    cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600
+                  }}>
+                    {editingProduct ? 'Update' : 'Add Product'}
                   </button>
-                  <button onClick={() => setShowProductForm(false)} style={{ backgroundColor: 'transparent', color: 'var(--text-dark)', border: '2px solid var(--beige)', borderRadius: 8, padding: '0.65rem 1.5rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
+                  <button onClick={() => setShowProductForm(false)} style={{
+                    backgroundColor: 'transparent', border: '2px solid var(--beige)',
+                    borderRadius: 8, padding: '0.65rem 1.5rem', cursor: 'pointer',
+                    fontFamily: 'Inter, sans-serif', fontWeight: 600
+                  }}>
                     Cancel
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Products Table */}
             <div style={cardStyle}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem' }}>
                 <thead>
@@ -461,30 +530,60 @@ function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map(product => (
-                    <tr key={product._id} style={{ borderBottom: '1px solid var(--beige)' }}>
-                      <td style={{ padding: '0.75rem' }}>
-                        <span style={{ marginRight: '0.5rem' }}>{product.emoji}</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>{product.name}</span>
-                      </td>
-                      <td style={{ padding: '0.75rem', color: 'var(--text-light)' }}>{product.category?.name}</td>
-                      <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--espresso)' }}>₹{product.price}</td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <input
-                          type="number"
-                          defaultValue={product.stock}
-                          onBlur={e => handleStockUpdate(product._id, e.target.value)}
-                          style={{ width: 70, padding: '0.3rem 0.5rem', borderRadius: 6, border: '2px solid var(--beige)', fontFamily: 'Inter, sans-serif', textAlign: 'center' }}
-                        />
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button onClick={() => handleEditProduct(product)} style={{ backgroundColor: 'var(--caramel)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.4rem 0.75rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', fontWeight: 600 }}>Edit</button>
-                          <button onClick={() => handleDeleteProduct(product._id)} style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: 6, padding: '0.4rem 0.75rem', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', fontWeight: 600 }}>Delete</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {products.map(product => {
+                    const isLow = product.stock <= (product.lowStockThreshold || 5)
+                    return (
+                      <tr key={product._id} style={{ borderBottom: '1px solid var(--beige)', backgroundColor: isLow ? '#fef2f2' : 'transparent' }}>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span style={{ marginRight: '0.5rem' }}>{product.emoji}</span>
+                          <span style={{ fontWeight: 600 }}>{product.name}</span>
+                          {isLow && <span style={{ marginLeft: '0.5rem', color: '#dc2626', fontSize: '0.75rem', fontWeight: 600 }}>LOW</span>}
+                        </td>
+                        <td style={{ padding: '0.75rem', color: 'var(--text-light)' }}>{product.category?.name || '—'}</td>
+                        <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--espresso)' }}>₹{product.price}</td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <button
+                              onClick={() => adjustStock(product, -1)}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--beige)', background: '#fff', cursor: 'pointer', fontWeight: 700 }}
+                            >−</button>
+                            <span style={{ minWidth: 32, textAlign: 'center', fontWeight: 600, color: isLow ? '#dc2626' : 'inherit' }}>
+                              {product.stock}
+                            </span>
+                            <button
+                              onClick={() => adjustStock(product, 1)}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--beige)', background: '#fff', cursor: 'pointer', fontWeight: 700 }}
+                            >+</button>
+                            <button
+                              onClick={() => adjustStock(product, 10)}
+                              title="Restock +10"
+                              style={{
+                                marginLeft: '0.5rem', padding: '0.25rem 0.5rem',
+                                borderRadius: 6, border: 'none', backgroundColor: 'var(--caramel)',
+                                color: '#fff', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer'
+                              }}
+                            >
+                              +10
+                            </button>
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button onClick={() => handleEditProduct(product)} style={{
+                              backgroundColor: 'var(--caramel)', color: '#fff', border: 'none',
+                              borderRadius: 6, padding: '0.4rem 0.75rem', cursor: 'pointer',
+                              fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', fontWeight: 600
+                            }}>Edit</button>
+                            <button onClick={() => handleDeleteProduct(product._id)} style={{
+                              backgroundColor: '#dc2626', color: '#fff', border: 'none',
+                              borderRadius: 6, padding: '0.4rem 0.75rem', cursor: 'pointer',
+                              fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', fontWeight: 600
+                            }}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -507,13 +606,13 @@ function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {customers.map(customer => (
-                    <tr key={customer._id} style={{ borderBottom: '1px solid var(--beige)' }}>
-                      <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-dark)' }}>{customer.name}</td>
-                      <td style={{ padding: '0.75rem', color: 'var(--text-light)' }}>{customer.email}</td>
-                      <td style={{ padding: '0.75rem', color: 'var(--text-light)' }}>{customer.phone || '—'}</td>
+                  {customers.map(c => (
+                    <tr key={c._id} style={{ borderBottom: '1px solid var(--beige)' }}>
+                      <td style={{ padding: '0.75rem', fontWeight: 600 }}>{c.name}</td>
+                      <td style={{ padding: '0.75rem', color: 'var(--text-light)' }}>{c.email}</td>
+                      <td style={{ padding: '0.75rem', color: 'var(--text-light)' }}>{c.phone || '—'}</td>
                       <td style={{ padding: '0.75rem', color: 'var(--text-light)' }}>
-                        {new Date(customer.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
                     </tr>
                   ))}

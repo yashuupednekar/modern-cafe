@@ -146,6 +146,8 @@ const login = async (req, res) => {
   }
 }
 
+
+
 // POST /api/auth/logout
 const logout = async (req, res) => {
   res.clearCookie('token')
@@ -165,4 +167,26 @@ const getMe = async (req, res) => {
   }
 }
 
-module.exports = { register, login, logout, getMe }
+
+// PUT /api/auth/update-profile
+const updateProfile = async (req, res) => {
+  try {
+    const { name, phone } = req.body
+
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Name is required' })
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { name, phone },
+      { new: true }
+    ).select('-passwordHash')
+
+    res.json({ success: true, message: 'Profile updated successfully', user })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+module.exports = { register, login, logout, getMe, updateProfile }
