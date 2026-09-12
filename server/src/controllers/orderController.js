@@ -1,20 +1,23 @@
 const Order = require('../models/Order')
 const Product = require('../models/Product')
+const { incrementCouponUsage } = require('./couponController')
 
 // POST /api/orders — create order
 const createOrder = async (req, res) => {
   try {
     const {
       items, address, fulfillment,
-      paymentMethod, subtotal, deliveryFee, tax, total, notes
+      paymentMethod, subtotal, deliveryFee, tax, total, notes,
+      couponCode, discount
     } = req.body
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'No items in order' })
     }
 
-    // Verify stock for each item
+    // Verify stock only for items that have a real product id
     for (const item of items) {
+      if (!item.product) continue
       const product = await Product.findById(item.product)
       if (!product) {
         return res.status(400).json({ success: false, message: `Product not found: ${item.name}` })
@@ -24,14 +27,15 @@ const createOrder = async (req, res) => {
       }
     }
 
-    // Decrement stock
+    // Decrement stock only for items with product id
     for (const item of items) {
+      if (!item.product) continue
       await Product.findByIdAndUpdate(item.product, {
         $inc: { stock: -item.quantity }
       })
     }
 
-    // Create order
+    // Create order (include coupon fields)
     const order = await Order.create({
       user:          req.userId,
       items,
@@ -41,9 +45,16 @@ const createOrder = async (req, res) => {
       subtotal,
       deliveryFee,
       tax,
+      discount:      discount || 0,
       total,
-      notes:         notes || ''
+      notes:         notes || '',
+      couponCode:    couponCode || '',
     })
+
+    // Increment coupon usage
+    if (couponCode) {
+      await incrementCouponUsage(couponCode)
+    }
 
     res.status(201).json({ success: true, message: 'Order placed successfully', order })
   } catch (error) {
