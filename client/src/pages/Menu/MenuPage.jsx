@@ -3,6 +3,7 @@ import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../services/api'
 import { useCart } from '../../store/CartContext'
+import { Link } from 'react-router-dom'
 
 function MenuPage() {
   const [products, setProducts]           = useState([])
@@ -233,15 +234,20 @@ function MenuPage() {
                   </p>
 
                   {/* Name */}
-                  <h3 style={{
-                    fontFamily: 'Playfair Display, serif',
-                    color: 'var(--espresso)',
-                    fontSize: '1.15rem',
-                    fontWeight: 700,
-                    marginBottom: '0.5rem'
-                  }}>
-                    {item.name}
-                  </h3>
+                <Link
+                    to={`/menu/${item.slug}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <h3 style={{
+                      fontFamily: 'Playfair Display, serif',
+                      color: 'var(--espresso)',
+                      fontSize: '1.15rem',
+                      fontWeight: 700,
+                      marginBottom: '0.5rem'
+                    }}>
+                      {item.name}
+                    </h3>
+                </Link>
 
                   {/* Description */}
                   <p style={{

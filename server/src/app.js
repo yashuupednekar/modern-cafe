@@ -11,6 +11,7 @@ const orderRoutes    = require('./routes/orderRoutes')
 const adminRoutes    = require('./routes/adminRoutes')
 const paymentRoutes  = require('./routes/paymentRoutes')
 const couponRoutes = require('./routes/couponRoutes')
+const reviewRoutes = require('./routes/reviewRoutes')
 
 const app = express()
 
@@ -34,6 +35,7 @@ app.use('/api/orders',     orderRoutes)
 app.use('/api/admin',      adminRoutes)
 app.use('/api/payments',   paymentRoutes)
 app.use('/api/coupons', couponRoutes)
+app.use('/api/reviews', reviewRoutes)
 
 // Test route
 app.get('/', (req, res) => {

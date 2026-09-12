@@ -11,6 +11,7 @@ import AccountPage from './pages/Account/AccountPage'
 import AdminPage from './pages/Admin/AdminPage'
 import AboutPage from './pages/About/AboutPage'
 import ContactPage from './pages/Contact/ContactPage'
+import ProductDetailPage from './pages/Menu/ProductDetailPage'
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/menu/:slug" element={<ProductDetailPage />} />
       </Routes>
     </BrowserRouter>
   )
