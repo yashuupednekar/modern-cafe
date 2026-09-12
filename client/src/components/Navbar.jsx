@@ -47,8 +47,9 @@ function Navbar() {
         {[
           { label: 'Home', path: '/' },
           { label: 'Menu', path: '/menu' },
-          { label: 'About', path: '/#about' },
-          { label: 'Contact', path: '/#contact' },
+          { label: 'About', path: '/about' },
+          { label: 'Contact', path: '/contact' },
+          
         ].map(({ label, path }) => (
           <Link key={label} to={path} style={{
             color: 'var(--cream)',

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Link } from 'react-router-dom'
+import { useCart } from '../store/CartContext'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -19,6 +20,7 @@ function FeaturedMenu() {
   const headingRef = useRef(null)
   const cardsRef   = useRef(null)
   const btnRef     = useRef(null)
+  const { addToCart } = useCart()
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -184,6 +186,12 @@ function FeaturedMenu() {
                 ₹{item.price}
               </p>
               <button
+                onClick={() => addToCart({
+                  _id: String(item.id),
+                  name: item.name,
+                  price: item.price,
+                  emoji: item.emoji,
+                })}
                 onMouseOver={e => gsap.to(e.target, { scale: 1.05, duration: 0.2 })}
                 onMouseOut={e => gsap.to(e.target, { scale: 1, duration: 0.2 })}
                 style={{
@@ -196,7 +204,8 @@ function FeaturedMenu() {
                   fontFamily: 'Inter, sans-serif',
                   fontWeight: 600,
                   fontSize: '0.85rem'
-                }}>
+                }}
+              >
                 Add to Cart
               </button>
             </div>
