@@ -73,19 +73,22 @@ const handleRemoveCoupon = () => {
   setCouponError('')
 }
 
-  const createOrder = async () => {
+    const createOrder = async () => {
     const res = await fetch(`${API_URL}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        items: cart.items.map(i => ({
-          product:  i._id,
-          name:     i.name,
-          price:    i.price,
-          emoji:    i.emoji,
-          quantity: i.quantity,
-        })),
+        items: cart.items.map(i => {
+          const isValidId = /^[0-9a-fA-F]{24}$/.test(String(i._id))
+          return {
+            ...(isValidId ? { product: i._id } : {}),
+            name:     i.name,
+            price:    i.price,
+            emoji:    i.emoji,
+            quantity: i.quantity,
+          }
+        }),
         address: {
           street:  form.street,
           city:    form.city,

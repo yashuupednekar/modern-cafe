@@ -29,6 +29,18 @@ function AdminPage() {
   const [customers, setCustomers] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading]     = useState(false)
+  const [coupons, setCoupons] = useState([])
+  const [showCouponForm, setShowCouponForm] = useState(false)
+  const [couponForm, setCouponForm] = useState({
+    code: '',
+    description: '',
+    discountType: 'percent',
+    discountValue: '',
+    minOrderAmount: 0,
+    maxDiscount: '',
+    usageLimit: '',
+    isActive: true
+  })
 
   // Product form
   const [showProductForm, setShowProductForm] = useState(false)
@@ -52,6 +64,7 @@ function AdminPage() {
     if (activeTab === 'products')  { fetchProducts(); fetchCategories() }
     if (activeTab === 'customers') fetchCustomers()
     if (activeTab === 'dashboard') fetchDashboard()
+    if (activeTab === 'coupons') fetchCoupons()
   }, [activeTab])
 
   const fetchDashboard = async () => {
@@ -101,6 +114,58 @@ function AdminPage() {
     } catch (err) { console.error(err) }
     setLoading(false)
   }
+
+  const fetchCoupons = async () => {
+  setLoading(true)
+  try {
+    const res  = await fetch(`${API_URL}/coupons`, { credentials: 'include' })
+    const data = await res.json()
+    if (data.success) setCoupons(data.coupons)
+  } catch (err) { console.error(err) }
+  setLoading(false)
+}
+
+const handleCreateCoupon = async () => {
+  const body = {
+    ...couponForm,
+    discountValue: Number(couponForm.discountValue),
+    minOrderAmount: Number(couponForm.minOrderAmount) || 0,
+    maxDiscount: couponForm.maxDiscount ? Number(couponForm.maxDiscount) : null,
+    usageLimit: couponForm.usageLimit ? Number(couponForm.usageLimit) : null,
+  }
+  await fetch(`${API_URL}/coupons`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body)
+  })
+  setShowCouponForm(false)
+  setCouponForm({
+    code: '', description: '', discountType: 'percent',
+    discountValue: '', minOrderAmount: 0, maxDiscount: '',
+    usageLimit: '', isActive: true
+  })
+  fetchCoupons()
+}
+
+const handleDeleteCoupon = async (id) => {
+  if (!window.confirm('Delete this coupon?')) return
+  await fetch(`${API_URL}/coupons/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  })
+  fetchCoupons()
+}
+
+const handleToggleCoupon = async (coupon) => {
+  await fetch(`${API_URL}/coupons/${coupon._id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ isActive: !coupon.isActive })
+  })
+  fetchCoupons()
+}
 
   const handleStatusUpdate = async (orderId, orderStatus) => {
     await fetch(`${API_URL}/admin/orders/${orderId}/status`, {
@@ -238,6 +303,7 @@ function AdminPage() {
           { tab: 'orders',    label: '📦 Orders' },
           { tab: 'products',  label: '☕ Products' },
           { tab: 'customers', label: '👥 Customers' },
+          { tab: 'coupons', label: '🏷️ Coupons' },
         ].map(({ tab, label }) => (
           <button
             key={tab}
@@ -621,6 +687,175 @@ function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* ── COUPONS ── */}
+{activeTab === 'coupons' && (
+  <div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <h1 style={{ fontFamily: 'Playfair Display, serif', color: 'var(--espresso)' }}>
+        Coupons ({coupons.length})
+      </h1>
+      <button
+        onClick={() => setShowCouponForm(true)}
+        style={{
+          backgroundColor: 'var(--espresso)', color: 'var(--cream)',
+          border: 'none', borderRadius: 8, padding: '0.65rem 1.25rem',
+          cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600
+        }}
+      >
+        + Add Coupon
+      </button>
+    </div>
+
+    {showCouponForm && (
+      <div style={cardStyle}>
+        <h3 style={{ fontFamily: 'Playfair Display, serif', color: 'var(--espresso)', marginBottom: '1rem' }}>
+          New Coupon
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Code</label>
+            <input
+              value={couponForm.code}
+              onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
+              placeholder="WELCOME10"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Type</label>
+            <select
+              value={couponForm.discountType}
+              onChange={e => setCouponForm({ ...couponForm, discountType: e.target.value })}
+              style={inputStyle}
+            >
+              <option value="percent">Percent (%)</option>
+              <option value="fixed">Fixed (₹)</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>
+              Value ({couponForm.discountType === 'percent' ? '%' : '₹'})
+            </label>
+            <input
+              type="number"
+              value={couponForm.discountValue}
+              onChange={e => setCouponForm({ ...couponForm, discountValue: e.target.value })}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Min Order (₹)</label>
+            <input
+              type="number"
+              value={couponForm.minOrderAmount}
+              onChange={e => setCouponForm({ ...couponForm, minOrderAmount: e.target.value })}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Max Discount (₹, optional)</label>
+            <input
+              type="number"
+              value={couponForm.maxDiscount}
+              onChange={e => setCouponForm({ ...couponForm, maxDiscount: e.target.value })}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Usage Limit (optional)</label>
+            <input
+              type="number"
+              value={couponForm.usageLimit}
+              onChange={e => setCouponForm({ ...couponForm, usageLimit: e.target.value })}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+        <div style={{ marginTop: '1rem' }}>
+          <label style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', fontWeight: 600 }}>Description</label>
+          <input
+            value={couponForm.description}
+            onChange={e => setCouponForm({ ...couponForm, description: e.target.value })}
+            style={inputStyle}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+          <button onClick={handleCreateCoupon} style={{
+            backgroundColor: 'var(--espresso)', color: 'var(--cream)',
+            border: 'none', borderRadius: 8, padding: '0.65rem 1.5rem',
+            cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600
+          }}>
+            Create Coupon
+          </button>
+          <button onClick={() => setShowCouponForm(false)} style={{
+            backgroundColor: 'transparent', border: '2px solid var(--beige)',
+            borderRadius: 8, padding: '0.65rem 1.5rem', cursor: 'pointer',
+            fontFamily: 'Inter, sans-serif', fontWeight: 600
+          }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+
+    <div style={cardStyle}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid var(--beige)' }}>
+            {['Code', 'Discount', 'Min Order', 'Used', 'Status', 'Actions'].map(h => (
+              <th key={h} style={{ padding: '0.75rem', textAlign: 'left', color: 'var(--text-light)', fontWeight: 600 }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {coupons.map(c => (
+            <tr key={c._id} style={{ borderBottom: '1px solid var(--beige)' }}>
+              <td style={{ padding: '0.75rem', fontWeight: 700, color: 'var(--espresso)' }}>{c.code}</td>
+              <td style={{ padding: '0.75rem' }}>
+                {c.discountType === 'percent' ? `${c.discountValue}%` : `₹${c.discountValue}`}
+              </td>
+              <td style={{ padding: '0.75rem' }}>₹{c.minOrderAmount}</td>
+              <td style={{ padding: '0.75rem' }}>
+                {c.usedCount}{c.usageLimit ? ` / ${c.usageLimit}` : ''}
+              </td>
+              <td style={{ padding: '0.75rem' }}>
+                <span style={{
+                  backgroundColor: c.isActive ? '#dcfce7' : '#fee2e2',
+                  color: c.isActive ? '#14532d' : '#991b1b',
+                  padding: '0.25rem 0.6rem',
+                  borderRadius: 12,
+                  fontSize: '0.75rem',
+                  fontWeight: 600
+                }}>
+                  {c.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </td>
+              <td style={{ padding: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={() => handleToggleCoupon(c)} style={{
+                    backgroundColor: 'var(--caramel)', color: '#fff', border: 'none',
+                    borderRadius: 6, padding: '0.35rem 0.65rem', cursor: 'pointer',
+                    fontSize: '0.8rem', fontWeight: 600
+                  }}>
+                    {c.isActive ? 'Disable' : 'Enable'}
+                  </button>
+                  <button onClick={() => handleDeleteCoupon(c._id)} style={{
+                    backgroundColor: '#dc2626', color: '#fff', border: 'none',
+                    borderRadius: 6, padding: '0.35rem 0.65rem', cursor: 'pointer',
+                    fontSize: '0.8rem', fontWeight: 600
+                  }}>
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
       </div>
     </div>
